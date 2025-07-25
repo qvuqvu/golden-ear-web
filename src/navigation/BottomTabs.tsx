@@ -37,7 +37,7 @@ export function BottomTabs({
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border md:hidden z-50">
-      <div className="flex items-center justify-around h-16 px-4">
+      <div className="flex items-center justify-around h-12 px-2">
         {tabs.map((tab) => {
           const isActive = currentScreen === tab.screen;
           const Icon = tab.icon;
@@ -47,13 +47,13 @@ export function BottomTabs({
               key={tab.name}
               onClick={() => handleTabClick(tab.screen)}
               className={cn(
-                "flex flex-col items-center justify-center flex-1 py-2 px-4 rounded-lg transition-colors",
+                "flex flex-col items-center justify-center flex-1 py-1 px-2 rounded-lg transition-colors",
                 isActive 
                   ? "text-accent bg-accent/10" 
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <Icon className="h-6 w-6 mb-1" /> 
+              <Icon className="h-5 w-5 mb-0.5" /> 
               <span className="text-xs font-medium">{tab.name}</span>
             </button>
           );

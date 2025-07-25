@@ -1,17 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { OnboardingScreen } from '@/screens/OnboardingScreen';
 import { HomeScreen } from '@/screens/HomeScreen';
 import { DictationScreen } from '@/screens/DictationScreen';
-import { ProfileScreen } from '@/screens/ProfileScreen';
 import { NavigationLayout } from '@/components/NavigationLayout';
-import { Lesson, CEFRLevel, Language } from '@/data/mockLessons';
-
-type Screen = 'onboarding' | 'home' | 'dictation' | 'profile';
+import { Lesson, CEFRLevel, Language, getLessonSlug } from '@/data/mockLessons';
 
 export default function Home() {
-  const [currentScreen, setCurrentScreen] = useState<Screen>('onboarding');
+  const router = useRouter();
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState<Language>('English');
   const [selectedLevel, setSelectedLevel] = useState<CEFRLevel>('A1');
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
@@ -25,34 +24,35 @@ export default function Home() {
     if (savedLanguage && savedLevel) {
       setSelectedLanguage(savedLanguage);
       setSelectedLevel(savedLevel);
-      setCurrentScreen('home');
+      // Redirect to lessons page if onboarding is complete
+      router.push('/lessons');
+    } else {
+      setShowOnboarding(true);
     }
     
     setIsLoading(false);
-  }, []);
+  }, [router]);
 
   const handleOnboardingComplete = (language: Language, level: CEFRLevel) => {
     setSelectedLanguage(language);
     setSelectedLevel(level);
-    setCurrentScreen('home');
+    setShowOnboarding(false);
+    // Redirect to lessons after onboarding
+    router.push('/lessons');
   };
 
   const handleLessonSelect = (lesson: Lesson) => {
-    setSelectedLesson(lesson);
-    setCurrentScreen('dictation');
+    // Navigate to individual lesson page
+    const slug = getLessonSlug(lesson);
+    router.push(`/lesson/${slug}`);
   };
 
-  const handleShowOnboarding = () => {
-    setCurrentScreen('onboarding');
+  const handleShowOnboardingScreen = () => {
+    setShowOnboarding(true);
   };
 
   const handleBackToHome = () => {
     setSelectedLesson(null);
-    setCurrentScreen('home');
-  };
-
-  const handleShowProfile = () => {
-    setCurrentScreen('profile');
   };
 
   // Show loading state
@@ -67,46 +67,42 @@ export default function Home() {
     );
   }
 
-  return (
-    <NavigationLayout
-      currentScreen={currentScreen}
-      selectedLanguage={selectedLanguage}
-      selectedLevel={selectedLevel}
-      onShowOnboarding={handleShowOnboarding}
-      onNavigateProfile={handleShowProfile}
-      onNavigateHome={handleBackToHome}
-      onBack={currentScreen === 'dictation' ? handleBackToHome : undefined}
-      lessonTitle={currentScreen === 'dictation' && selectedLesson ? selectedLesson.title : undefined}
-      showNavigation={currentScreen !== 'onboarding'}
-    >
-      {/* Screen Router */}
-      {currentScreen === 'onboarding' && (
-        <OnboardingScreen onComplete={handleOnboardingComplete} />
-      )}
-      
-      {currentScreen === 'home' && (
-        <HomeScreen
-          selectedLanguage={selectedLanguage}
-          selectedLevel={selectedLevel}
-          onLessonSelect={handleLessonSelect}
-          onShowOnboarding={handleShowOnboarding}
-        />
-      )}
-      
-      {currentScreen === 'dictation' && selectedLesson && (
+  // Show onboarding if needed
+  if (showOnboarding) {
+    return <OnboardingScreen onComplete={handleOnboardingComplete} />;
+  }
+
+  // Show dictation screen if lesson is selected (for backward compatibility)
+  if (selectedLesson) {
+    return (
+      <NavigationLayout
+        currentScreen="dictation"
+        selectedLanguage={selectedLanguage}
+        selectedLevel={selectedLevel}
+        lessonTitle={selectedLesson.title}
+      >
         <DictationScreen
           lesson={selectedLesson}
           onBack={handleBackToHome}
         />
-      )}
-      
-      {currentScreen === 'profile' && (
-        <ProfileScreen
-          selectedLanguage={selectedLanguage}
-          selectedLevel={selectedLevel}
-          onShowOnboarding={handleShowOnboarding}
-        />
-      )}
+      </NavigationLayout>
+    );
+  }
+
+  // Show home screen (lessons)
+  return (
+    <NavigationLayout
+      currentScreen="home"
+      selectedLanguage={selectedLanguage}
+      selectedLevel={selectedLevel}
+      onShowOnboarding={handleShowOnboardingScreen}
+    >
+      <HomeScreen
+        selectedLanguage={selectedLanguage}
+        selectedLevel={selectedLevel}
+        onLessonSelect={handleLessonSelect}
+        onShowOnboarding={handleShowOnboardingScreen}
+      />
     </NavigationLayout>
   );
 }

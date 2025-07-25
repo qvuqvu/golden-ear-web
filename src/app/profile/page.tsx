@@ -2,6 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import { ProfileScreen } from '@/screens/ProfileScreen';
+import { NavigationLayout } from '@/components/NavigationLayout';
+import { Language, CEFRLevel } from '@/data/mockLessons';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -14,18 +16,24 @@ export default function ProfilePage() {
   };
 
   // Get current preferences from localStorage
-  const selectedLanguage = typeof window !== 'undefined' 
+  const selectedLanguage = (typeof window !== 'undefined' 
     ? localStorage.getItem('selectedLanguage') || 'English'
-    : 'English';
-  const selectedLevel = typeof window !== 'undefined' 
+    : 'English') as Language;
+  const selectedLevel = (typeof window !== 'undefined' 
     ? localStorage.getItem('selectedLevel') || 'A1'
-    : 'A1';
+    : 'A1') as CEFRLevel;
 
   return (
-    <ProfileScreen
+    <NavigationLayout
       selectedLanguage={selectedLanguage}
       selectedLevel={selectedLevel}
       onShowOnboarding={handleShowOnboarding}
-    />
+    >
+      <ProfileScreen
+        selectedLanguage={selectedLanguage}
+        selectedLevel={selectedLevel}
+        onShowOnboarding={handleShowOnboarding}
+      />
+    </NavigationLayout>
   );
 }

@@ -1,5 +1,6 @@
 export interface Lesson {
   id: string;
+  slug?: string;
   title: string;
   category: string;
   level: CEFRLevel;
@@ -13,6 +14,27 @@ export interface Lesson {
 export type CEFRLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 
 export type Language = 'English' | 'French' | 'Chinese';
+
+// Helper function to generate slug from title
+const createSlug = (title: string): string => {
+  return title
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '') // Remove special characters except spaces and dashes
+    .replace(/\s+/g, '-') // Replace spaces with dashes
+    .trim();
+};
+
+// Helper function to get lesson slug
+export const getLessonSlug = (lesson: Lesson): string => {
+  return lesson.slug || createSlug(lesson.title);
+};
+
+// Helper function to find lesson by slug
+export const findLessonBySlug = (slug: string): Lesson | undefined => {
+  return mockLessons.find(lesson => 
+    getLessonSlug(lesson) === slug || lesson.id === slug
+  );
+};
 
 export interface UserProfile {
   id: string;

@@ -1,6 +1,6 @@
 'use client';
 
-import { User, Globe, Settings, ArrowLeft } from 'lucide-react';
+import { User, Globe, Settings, ArrowLeft, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -10,6 +10,7 @@ interface TopNavigationProps {
   onShowOnboarding?: () => void;
   currentScreen?: 'onboarding' | 'home' | 'dictation' | 'profile';
   onNavigateProfile?: () => void;
+  onNavigateHome?: () => void;
   onBack?: () => void;
   lessonTitle?: string;
 }
@@ -20,6 +21,7 @@ export function TopNavigation({
   onShowOnboarding,
   currentScreen = 'home',
   onNavigateProfile,
+  onNavigateHome,
   onBack,
   lessonTitle
 }: TopNavigationProps) {
@@ -44,30 +46,25 @@ export function TopNavigation({
             </div>
           </div>
 
-          {/* Center Content - Lesson title for dictation screen */}
-          {currentScreen === 'dictation' && lessonTitle && (
-            <div className="flex items-center space-x-4">
-              {onBack && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onBack}
-                  className="flex items-center space-x-2"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span className="hidden lg:inline">Back</span>
-                </Button>
-              )}
-              <div className="flex items-center">
-                <h2 className="font-semibold text-foreground truncate max-w-md">
-                  {lessonTitle}
-                </h2>
-              </div>
-            </div>
-          )}
 
-          {/* Right Side - Profile, Language Change, and Settings */}
+          {/* Right Side - All Lessons, Profile, Language Change, and Settings */}
           <div className="flex items-center space-x-2">
+            {/* All Lessons Button */}
+            {currentScreen !== 'dictation' && (
+              <Button
+                variant={currentScreen === 'home' ? "default" : "ghost"}
+                size="sm"
+                onClick={onNavigateHome}
+                className={cn(
+                  "flex items-center space-x-2",
+                  currentScreen === 'home' && "bg-primary text-primary-foreground"
+                )}
+              >
+                <BookOpen className="w-4 h-4" />
+                <span className="hidden lg:inline">All Lessons</span>
+              </Button>
+            )}
+
             {/* Profile Button */}
             {currentScreen !== 'dictation' && (
               <Button
