@@ -2,18 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { LandingPage } from '@/components/LandingPage';
 import { OnboardingScreen } from '@/screens/OnboardingScreen';
-import { HomeScreen } from '@/screens/HomeScreen';
-import { DictationScreen } from '@/screens/DictationScreen';
-import { NavigationLayout } from '@/components/NavigationLayout';
-import { Lesson, CEFRLevel, Language, getLessonSlug } from '@/data/mockLessons';
+import { Language, CEFRLevel } from '@/data/mockLessons';
 
 export default function Home() {
   const router = useRouter();
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState<Language>('English');
-  const [selectedLevel, setSelectedLevel] = useState<CEFRLevel>('A1');
-  const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Check if user has completed onboarding
@@ -22,37 +17,23 @@ export default function Home() {
     const savedLevel = localStorage.getItem('selectedLevel') as CEFRLevel;
     
     if (savedLanguage && savedLevel) {
-      setSelectedLanguage(savedLanguage);
-      setSelectedLevel(savedLevel);
-      // Redirect to lessons page if onboarding is complete
+      // Redirect returning users to lessons page
       router.push('/lessons');
-    } else {
-      setShowOnboarding(true);
     }
     
     setIsLoading(false);
   }, [router]);
 
   const handleOnboardingComplete = (language: Language, level: CEFRLevel) => {
-    setSelectedLanguage(language);
-    setSelectedLevel(level);
-    setShowOnboarding(false);
+    // Store user preferences in localStorage
+    localStorage.setItem('selectedLanguage', language);
+    localStorage.setItem('selectedLevel', level);
     // Redirect to lessons after onboarding
     router.push('/lessons');
   };
 
-  const handleLessonSelect = (lesson: Lesson) => {
-    // Navigate to individual lesson page
-    const slug = getLessonSlug(lesson);
-    router.push(`/lesson/${slug}`);
-  };
-
-  const handleShowOnboardingScreen = () => {
+  const handleStartOnboarding = () => {
     setShowOnboarding(true);
-  };
-
-  const handleBackToHome = () => {
-    setSelectedLesson(null);
   };
 
   // Show loading state
@@ -67,42 +48,11 @@ export default function Home() {
     );
   }
 
-  // Show onboarding if needed
+  // Show onboarding if user clicked to start
   if (showOnboarding) {
     return <OnboardingScreen onComplete={handleOnboardingComplete} />;
   }
 
-  // Show dictation screen if lesson is selected (for backward compatibility)
-  if (selectedLesson) {
-    return (
-      <NavigationLayout
-        currentScreen="dictation"
-        selectedLanguage={selectedLanguage}
-        selectedLevel={selectedLevel}
-        lessonTitle={selectedLesson.title}
-      >
-        <DictationScreen
-          lesson={selectedLesson}
-          onBack={handleBackToHome}
-        />
-      </NavigationLayout>
-    );
-  }
-
-  // Show home screen (lessons)
-  return (
-    <NavigationLayout
-      currentScreen="home"
-      selectedLanguage={selectedLanguage}
-      selectedLevel={selectedLevel}
-      onShowOnboarding={handleShowOnboardingScreen}
-    >
-      <HomeScreen
-        selectedLanguage={selectedLanguage}
-        selectedLevel={selectedLevel}
-        onLessonSelect={handleLessonSelect}
-        onShowOnboarding={handleShowOnboardingScreen}
-      />
-    </NavigationLayout>
-  );
+  // Show landing page for new users
+  return <LandingPage onStartTrial={handleStartOnboarding} />;
 }

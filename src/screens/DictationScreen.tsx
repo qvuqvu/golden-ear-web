@@ -12,13 +12,16 @@ import {
   Pause, 
   RotateCcw, 
   ArrowLeft, 
+  ArrowRight,
   Volume2, 
   CheckCircle, 
   XCircle,
   MoreVertical,
   AlertCircle,
   Zap,
-  ZapOff
+  ZapOff,
+  FileText,
+  Edit3
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -38,7 +41,10 @@ interface WordStatus {
   userInput?: string;
 }
 
+type TabType = 'dictation' | 'transcript';
+
 export function DictationScreen({ lesson, onBack }: DictationScreenProps) {
+  const [activeTab, setActiveTab] = useState<TabType>('dictation');
   const [userInput, setUserInput] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
   const [attempts, setAttempts] = useState(0);
@@ -46,6 +52,7 @@ export function DictationScreen({ lesson, onBack }: DictationScreenProps) {
   const [isCorrect, setIsCorrect] = useState(false);
   const [errorWordIndex, setErrorWordIndex] = useState<number | null>(null);
   const [isLiveFeedbackEnabled, setIsLiveFeedbackEnabled] = useState(true);
+  const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
   const audioSettings = {
     autoReplay: false,
     playbackSpeed: 1,
@@ -57,6 +64,20 @@ export function DictationScreen({ lesson, onBack }: DictationScreenProps) {
 
   // Split transcript into words for progressive reveal
   const words = lesson.transcript.split(' ');
+  
+  // Split transcript into sentences for Full Transcript mode
+  const sentences = useMemo(() => {
+    return lesson.transcript
+      .split(/[.!?]+/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0)
+      .map((sentence, index) => ({
+        id: index,
+        text: sentence + (index < lesson.transcript.split(/[.!?]+/).length - 1 ? '.' : ''),
+        startTime: index * 3, // Mock timing - 3 seconds per sentence
+        endTime: (index + 1) * 3,
+      }));
+  }, [lesson.transcript]);
   
   // Real-time word analysis
   const wordAnalysis = useMemo(() => {
@@ -209,6 +230,28 @@ export function DictationScreen({ lesson, onBack }: DictationScreenProps) {
     }
   };
 
+  // Full Transcript navigation functions
+  const handlePreviousSentence = () => {
+    if (currentSentenceIndex > 0) {
+      setCurrentSentenceIndex(currentSentenceIndex - 1);
+    }
+  };
+
+  const handleNextSentence = () => {
+    if (currentSentenceIndex < sentences.length - 1) {
+      setCurrentSentenceIndex(currentSentenceIndex + 1);
+    }
+  };
+
+  const handlePlaySentence = (index: number) => {
+    setCurrentSentenceIndex(index);
+    // In a real implementation, this would seek to the sentence's timestamp
+    if (audioRef.current) {
+      audioRef.current.currentTime = sentences[index].startTime;
+      audioRef.current.play();
+    }
+  };
+
   // Calculate accuracy for progress
   const correctWordsCount = userInput.trim() && isLiveFeedbackEnabled
     ? wordAnalysis.analysis.filter((w: WordStatus) => w.status === 'correct').length
@@ -232,18 +275,18 @@ export function DictationScreen({ lesson, onBack }: DictationScreenProps) {
                 <div className="flex items-center gap-1 mt-0.5">
                   <Badge variant="outline" className="text-xs h-5 px-1.5">{lesson.level}</Badge>
                   <Badge variant="secondary" className="text-xs h-5 px-1.5">{lesson.category}</Badge>
-                  {isLiveFeedbackEnabled && (
+                  {activeTab === 'dictation' && isLiveFeedbackEnabled && (
                     <Badge variant="default" className="text-xs h-5 px-1.5">
                       <Zap className="w-3 h-3 mr-0.5" />
                       Live
                     </Badge>
                   )}
-                  {userInput.trim() && (
+                  {activeTab === 'dictation' && userInput.trim() && (
                     <Badge variant="outline" className="text-xs h-5 px-1.5">
                       {correctWordsCount}/{words.length}
                     </Badge>
                   )}
-                  {errorWordIndex !== null && (
+                  {activeTab === 'dictation' && errorWordIndex !== null && (
                     <Badge variant="destructive" className="text-xs h-5 px-1.5">
                       <AlertCircle className="w-3 h-3 mr-0.5" />
                       Error {errorWordIndex + 1}
@@ -260,10 +303,12 @@ export function DictationScreen({ lesson, onBack }: DictationScreenProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={toggleLiveFeedback}>
-                  {isLiveFeedbackEnabled ? <ZapOff className="w-4 h-4 mr-2" /> : <Zap className="w-4 h-4 mr-2" />}
-                  {isLiveFeedbackEnabled ? 'Disable Live' : 'Enable Live'}
-                </DropdownMenuItem>
+                {activeTab === 'dictation' && (
+                  <DropdownMenuItem onClick={toggleLiveFeedback}>
+                    {isLiveFeedbackEnabled ? <ZapOff className="w-4 h-4 mr-2" /> : <Zap className="w-4 h-4 mr-2" />}
+                    {isLiveFeedbackEnabled ? 'Disable Live' : 'Enable Live'}
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={handleReset}>
                   <RotateCcw className="w-4 h-4 mr-2" />
                   Reset Lesson
@@ -278,21 +323,63 @@ export function DictationScreen({ lesson, onBack }: DictationScreenProps) {
             </DropdownMenu>
           </div>
         </div>
+
+        {/* Tab Navigation */}
+        <div className="border-t border-border">
+          <div className="container mx-auto px-3">
+            <div className="flex">
+              <button
+                onClick={() => setActiveTab('dictation')}
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'dictation'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Edit3 className="w-4 h-4 mr-1.5 inline" />
+                Dictation
+              </button>
+              <button
+                onClick={() => setActiveTab('transcript')}
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'transcript'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <FileText className="w-4 h-4 mr-1.5 inline" />
+                Full Transcript
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="container mx-auto px-3 py-3 space-y-3 h-full">
+        {activeTab === 'dictation' ? (
+          <DictationTabContent />
+        ) : (
+          <FullTranscriptTabContent />
+        )}
+      </div>
+    </div>
+  );
+
+  // Dictation Tab Component
+  function DictationTabContent() {
+    return (
+      <div className="container mx-auto px-2 py-2 space-y-2 h-full">
         {/* Audio Player */}
         <Card>
-          <CardContent className="p-3">
-            <div className="flex flex-col items-center space-y-2">
-              <div className="flex items-center justify-center w-12 h-12 bg-primary/10 rounded-full">
-                <Volume2 className="w-6 h-6 text-primary" />
+          <CardContent className="p-2">
+            <div className="flex flex-col items-center space-y-1">
+              <div className="flex items-center justify-center w-10 h-10 bg-primary/10 rounded-full">
+                <Volume2 className="w-5 h-5 text-primary" />
               </div>
               
               <div className="text-center">
-                <h2 className="text-sm font-semibold text-foreground mb-1">Listen Carefully</h2>
+                <h2 className="text-xs font-semibold text-foreground mb-0.5">Listen Carefully</h2>
                 <p className="text-xs text-muted-foreground">
                   Play the audio and type what you hear
                 </p>
@@ -301,16 +388,16 @@ export function DictationScreen({ lesson, onBack }: DictationScreenProps) {
               <Button
                 onClick={handlePlayPause}
                 size="sm"
-                className="w-24 h-8"
+                className="w-20 h-7 text-xs"
               >
                 {isPlaying ? (
                   <>
-                    <Pause className="w-4 h-4 mr-1" />
+                    <Pause className="w-3 h-3 mr-1" />
                     Pause
                   </>
                 ) : (
                   <>
-                    <Play className="w-4 h-4 mr-1" />
+                    <Play className="w-3 h-3 mr-1" />
                     Play
                   </>
                 )}
@@ -332,22 +419,22 @@ export function DictationScreen({ lesson, onBack }: DictationScreenProps) {
 
         {/* Input Section */}
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Your Transcription</CardTitle>
+          <CardHeader className="pb-1">
+            <CardTitle className="text-sm">Your Transcription</CardTitle>
             {userInput.trim() && isLiveFeedbackEnabled && (
               <p className="text-xs text-muted-foreground">
                 {errorWordIndex !== null 
-                  ? '⚠️ Incorrect word - press Enter to position cursor' 
-                  : '✅ All words correct so far!'}
+                  ? '⚠️ Incorrect word - press Enter' 
+                  : '✅ All correct!'}
               </p>
             )}
             {!isLiveFeedbackEnabled && (
               <p className="text-xs text-muted-foreground">
-                📝 Manual mode: Type complete answer and press Enter
+                📝 Manual mode: Type and press Enter
               </p>
             )}
           </CardHeader>
-          <CardContent className="pt-0 space-y-3">
+          <CardContent className="pt-0 space-y-2">
             {/* Custom styled input with underlined errors */}
             <div className="relative">
               <Input
@@ -355,7 +442,7 @@ export function DictationScreen({ lesson, onBack }: DictationScreenProps) {
                 placeholder="Type what you hear..."
                 value={userInput}
                 onChange={handleInputChange}
-                className={`text-base p-3 h-10 transition-all duration-200 ${
+                className={`text-sm p-2 h-8 transition-all duration-200 ${
                   isLiveFeedbackEnabled && errorWordIndex !== null 
                     ? 'ring-2 ring-yellow-400 border-yellow-400' 
                     : ''
@@ -363,7 +450,7 @@ export function DictationScreen({ lesson, onBack }: DictationScreenProps) {
                 disabled={showResult && isCorrect}
               />
               {userInput.trim() && showResult && (
-                <div className="absolute inset-0 p-3 pointer-events-none text-base leading-6 overflow-hidden">
+                <div className="absolute inset-0 p-2 pointer-events-none text-sm leading-4 overflow-hidden">
                   <div className="flex flex-wrap">
                     {userInput.trim().split(/\s+/).map((userWord, index) => {
                       const correctWord = words[index];
@@ -398,7 +485,7 @@ export function DictationScreen({ lesson, onBack }: DictationScreenProps) {
               <Button 
                 onClick={handleSubmit}
                 disabled={!userInput.trim() || (showResult && isCorrect)}
-                className="flex-1 h-8 text-sm"
+                className="flex-1 h-7 text-xs"
                 size="sm"
               >
                 Check Answer
@@ -409,7 +496,7 @@ export function DictationScreen({ lesson, onBack }: DictationScreenProps) {
                   onClick={handleTryAgain}
                   variant="outline"
                   size="sm"
-                  className="h-8 text-sm"
+                  className="h-7 text-xs"
                 >
                   Try Again
                 </Button>
@@ -423,24 +510,24 @@ export function DictationScreen({ lesson, onBack }: DictationScreenProps) {
         {/* Result Section */}
         {showResult && (
           <Card className={isCorrect ? 'border-green-200 bg-green-50 dark:bg-green-900/20' : 'border-red-200 bg-red-50 dark:bg-red-900/20'}>
-            <CardContent className="p-3">
-              <div className="flex items-center gap-2 mb-3">
+            <CardContent className="p-2">
+              <div className="flex items-center gap-2 mb-2">
                 {isCorrect ? (
-                  <CheckCircle className="w-5 h-5 text-green-600" />
+                  <CheckCircle className="w-4 h-4 text-green-600" />
                 ) : (
-                  <XCircle className="w-5 h-5 text-red-600" />
+                  <XCircle className="w-4 h-4 text-red-600" />
                 )}
-                <h3 className="text-base font-semibold">
+                <h3 className="text-sm font-semibold">
                   {isCorrect ? 'Excellent!' : 'Not quite right'}
                 </h3>
               </div>
               
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {!isCorrect && (
                   <div>
-                    <p className="text-xs font-medium text-muted-foreground mb-2">Progressive Answer Reveal:</p>
-                    <div className="p-3 bg-background rounded-lg border">
-                      <div className="flex flex-wrap gap-1 mb-2">
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Progressive Answer Reveal:</p>
+                    <div className="p-2 bg-background rounded-lg border">
+                      <div className="flex flex-wrap gap-0.5 mb-1">
                         {words.map((word, index) => {
                           const userWords = userInput.trim().split(/\s+/).filter(w => w.length > 0);
                           const userWord = userWords[index];
@@ -453,9 +540,9 @@ export function DictationScreen({ lesson, onBack }: DictationScreenProps) {
                             return (
                               <span
                                 key={index}
-                                className="px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                                className="px-1 py-0.5 rounded text-xs bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
                               >
-                                {'•'.repeat(Math.max(word.length, 3))}
+                                {'•'.repeat(Math.max(word.length, 2))}
                               </span>
                             );
                           }
@@ -463,7 +550,7 @@ export function DictationScreen({ lesson, onBack }: DictationScreenProps) {
                           return (
                             <span
                               key={index}
-                              className={`px-1.5 py-0.5 rounded text-xs font-medium transition-all duration-200 ${
+                              className={`px-1 py-0.5 rounded text-xs font-medium transition-all duration-200 ${
                                 isIncorrect
                                   ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 underline decoration-yellow-500 decoration-2'
                                   : isCurrentWord
@@ -482,7 +569,7 @@ export function DictationScreen({ lesson, onBack }: DictationScreenProps) {
                         {userInput.trim().split(/\s+/).slice(words.length).map((excessWord, index) => (
                           <span
                             key={`excess-${index}`}
-                            className="px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 underline decoration-red-500 decoration-2"
+                            className="px-1 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 underline decoration-red-500 decoration-2"
                           >
                             {excessWord}
                           </span>
@@ -491,19 +578,19 @@ export function DictationScreen({ lesson, onBack }: DictationScreenProps) {
                       
                       {errorWordIndex !== null && (
                         <div className="text-xs text-muted-foreground">
-                          💡 First error at word {errorWordIndex + 1}. Cursor positioned for correction.
+                          💡 Error at word {errorWordIndex + 1}
                         </div>
                       )}
                     </div>
                   </div>
                 )}
                 
-                <div className="flex items-center justify-between pt-2 border-t border-border">
+                <div className="flex items-center justify-between pt-1 border-t border-border">
                   <span className="text-xs text-muted-foreground">
                     Attempts: {attempts}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    Final Accuracy: {isCorrect ? 100 : accuracy}%
+                    Accuracy: {isCorrect ? 100 : accuracy}%
                   </span>
                 </div>
               </div>
@@ -516,23 +603,23 @@ export function DictationScreen({ lesson, onBack }: DictationScreenProps) {
         {/* Live Feedback Section - Real-time word analysis */}
         {userInput.trim() && isLiveFeedbackEnabled && (
           <Card className="border-l-4 border-l-primary">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Zap className="w-4 h-4" />
+            <CardHeader className="pb-1">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Zap className="w-3 h-3" />
                 Live Feedback
-                <Badge variant="outline" className="text-xs h-5 px-1.5">
-                  {correctWordsCount}/{words.length} words
+                <Badge variant="outline" className="text-xs h-4 px-1">
+                  {correctWordsCount}/{words.length}
                 </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {/* Word-by-word comparison */}
-                <div className="flex flex-wrap gap-1 p-3 bg-muted/30 rounded-lg">
+                <div className="flex flex-wrap gap-0.5 p-2 bg-muted/30 rounded-lg">
                   {wordAnalysis.analysis.map((wordStatus, index) => (
                     <span
                       key={index}
-                      className={`px-1.5 py-0.5 rounded text-xs font-medium transition-all duration-200 ${
+                      className={`px-1 py-0.5 rounded text-xs font-medium transition-all duration-200 ${
                         wordStatus.status === 'correct'
                           ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                           : wordStatus.status === 'incorrect'
@@ -549,22 +636,22 @@ export function DictationScreen({ lesson, onBack }: DictationScreenProps) {
 
                 {/* Error details */}
                 {errorWordIndex !== null && (
-                  <div className="p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
-                    <div className="flex items-center gap-2 mb-1">
-                      <AlertCircle className="w-4 h-4 text-yellow-600" />
+                  <div className="p-1.5 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                    <div className="flex items-center gap-1 mb-0.5">
+                      <AlertCircle className="w-3 h-3 text-yellow-600" />
                       <span className="text-xs font-medium text-yellow-800 dark:text-yellow-300">
                         Error at word {errorWordIndex + 1}
                       </span>
                     </div>
-                    <div className="text-xs space-y-1">
-                      <div className="flex gap-4">
+                    <div className="text-xs space-y-0.5">
+                      <div>
                         <span className="text-yellow-700 dark:text-yellow-400">
-                          You typed: <span className="font-mono bg-yellow-100 dark:bg-yellow-900/50 px-1 rounded underline decoration-yellow-500 decoration-2">
+                          You: <span className="font-mono bg-yellow-100 dark:bg-yellow-900/50 px-1 rounded underline decoration-yellow-500 decoration-2">
                             {wordAnalysis.analysis[errorWordIndex]?.userInput}
                           </span>
                         </span>
                       </div>
-                      <div className="flex gap-4">
+                      <div>
                         <span className="text-yellow-700 dark:text-yellow-400">
                           Correct: <span className="font-mono bg-yellow-100 dark:bg-yellow-900/50 px-1 rounded">
                             {wordAnalysis.analysis[errorWordIndex]?.word}
@@ -577,10 +664,10 @@ export function DictationScreen({ lesson, onBack }: DictationScreenProps) {
 
                 {/* Progress indicator */}
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Progress: {correctWordsCount} of {words.length} words</span>
-                  <span>Accuracy: {accuracy}%</span>
+                  <span>{correctWordsCount}/{words.length} words</span>
+                  <span>{accuracy}%</span>
                 </div>
-                <Progress value={accuracy} className="h-1.5" />
+                <Progress value={accuracy} className="h-1" />
               </div>
             </CardContent>
           </Card>
@@ -588,26 +675,158 @@ export function DictationScreen({ lesson, onBack }: DictationScreenProps) {
 
         {/* Progress Section */}
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Progress</CardTitle>
+          <CardHeader className="pb-1">
+            <CardTitle className="text-sm">Progress</CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="space-y-2">
+            <div className="space-y-1">
               <div className="flex justify-between text-xs">
                 <span>Accuracy</span>
                 <span>{accuracy}%</span>
               </div>
-              <Progress value={accuracy} className="h-1.5" />
+              <Progress value={accuracy} className="h-1" />
               
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>Attempts: {attempts}</span>
-                <span>Status: {isCorrect ? 'Completed' : 'In Progress'}</span>
+                <span>{isCorrect ? 'Completed' : 'In Progress'}</span>
               </div>
             </div>
           </CardContent>
         </Card>
+      </div>
+    );
+  }
+
+  // Full Transcript Tab Component
+  function FullTranscriptTabContent() {
+    return (
+      <div className="container mx-auto px-2 py-2 h-full">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
+          {/* Left: Audio Controls */}
+          <Card className="h-fit">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Volume2 className="w-4 h-4" />
+                Audio Playback
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* Main Audio Player */}
+              <div className="flex flex-col items-center space-y-2">
+                <Button
+                  onClick={handlePlayPause}
+                  size="lg"
+                  className="w-16 h-16 rounded-full"
+                >
+                  {isPlaying ? (
+                    <Pause className="w-6 h-6" />
+                  ) : (
+                    <Play className="w-6 h-6" />
+                  )}
+                </Button>
+                
+                <div className="text-center">
+                  <p className="text-sm font-medium">
+                    Sentence {currentSentenceIndex + 1} of {sentences.length}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {sentences[currentSentenceIndex]?.text}
+                  </p>
+                </div>
+              </div>
+
+              {/* Sentence Navigation */}
+              <div className="flex items-center justify-center gap-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePreviousSentence}
+                  disabled={currentSentenceIndex === 0}
+                >
+                  <ArrowLeft className="w-4 h-4 mr-1" />
+                  Previous
+                </Button>
+                
+                <Badge variant="outline" className="px-3 py-1">
+                  {currentSentenceIndex + 1} / {sentences.length}
+                </Badge>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleNextSentence}
+                  disabled={currentSentenceIndex === sentences.length - 1}
+                >
+                  Next
+                  <ArrowRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+
+              {/* Audio element */}
+              <audio
+                ref={audioRef}
+                src={lesson.audio_url}
+                onEnded={() => setIsPlaying(false)}
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Right: Sentence List */}
+          <Card className="h-fit">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Transcript
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {sentences.map((sentence, index) => (
+                  <div
+                    key={sentence.id}
+                    className={`p-3 rounded-lg border transition-all duration-200 ${
+                      index === currentSentenceIndex
+                        ? 'bg-primary/10 border-primary'
+                        : 'bg-background hover:bg-muted/50'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="outline" className="text-xs h-5 px-1.5">
+                            {index + 1}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {sentence.startTime}s - {sentence.endTime}s
+                          </span>
+                        </div>
+                        <p className={`text-sm ${
+                          index === currentSentenceIndex
+                            ? 'font-medium text-primary'
+                            : 'text-foreground'
+                        }`}>
+                          {sentence.text}
+                        </p>
+                      </div>
+                      
+                      <Button
+                        variant={index === currentSentenceIndex ? "default" : "ghost"}
+                        size="sm"
+                        className="h-7 w-7 p-0 flex-shrink-0"
+                        onClick={() => handlePlaySentence(index)}
+                      >
+                        <Play className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
 }

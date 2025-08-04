@@ -108,6 +108,9 @@
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.985 0 0);
+  --custom-blue: oklch(0.705 0.186 264.5); /* #595FCC */
+  --custom-orange: oklch(0.755 0.181 53.5); /* #EB7549 */
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
@@ -132,5 +135,93 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Custom animations for landing page */
+@layer utilities {
+  .animate-spin-slow {
+    animation: spin-slow 20s linear infinite;
+  }
+  
+  .globe-zoom {
+    animation: globe-pulse 6s ease-in-out infinite;
+  }
+  
+  @keyframes spin-slow {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  
+  @keyframes globe-pulse {
+    0%, 100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.03);
+    }
+  }
+  
+  /* Enhanced smooth scroll behavior */
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  /* Parallax container with enhanced performance */
+  .parallax-container {
+    perspective: 1000px;
+    transform-style: preserve-3d;
+    backface-visibility: hidden;
+  }
+  
+  /* Optimized will-change for better performance */
+  .will-change-transform {
+    will-change: transform, opacity;
+    transform-style: preserve-3d;
+    backface-visibility: hidden;
+    perspective: 1000px;
+  }
+
+  /* Optimize transforms for GPU acceleration */
+  [data-gsap] {
+    transform: translate3d(0, 0, 0);
+    will-change: transform;
+  }
+
+  /* Enhanced smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Reduce motion for users who prefer it */
+  @media (prefers-reduced-motion: reduce) {
+    .will-change-transform {
+      animation: none !important;
+      transition: none !important;
+    }
+    
+    html {
+      scroll-behavior: auto;
+    }
+  }
+
+  /* Force hardware acceleration for specific elements */
+  .gpu-accelerated {
+    transform: translate3d(0, 0, 0);
+    will-change: transform;
+    backface-visibility: hidden;
+  }
+
+  /* Smooth transforms */
+  .smooth-transform {
+    transform-origin: center center;
+    backface-visibility: hidden;
+    perspective: 1000px;
   }
 }
